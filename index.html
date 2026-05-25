@@ -226,6 +226,21 @@
     .edit-day-btn:hover { border-color: var(--accent); color: var(--accent); }
     .edit-day-btn svg { width: 12px; height: 12px; }
 
+    /* Update banner */
+    .update-banner {
+      position: fixed; top: 0; left: 0; right: 0; z-index: 400;
+      background: var(--accent); color: white; padding: 10px 16px;
+      display: flex; align-items: center; justify-content: space-between;
+      font-size: 13px; font-weight: 600;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+      animation: slideDown 0.3s ease;
+    }
+    @keyframes slideDown { from { transform: translateY(-100%); } to { transform: translateY(0); } }
+    .update-banner button {
+      background: white; color: var(--accent); border: none; padding: 6px 14px;
+      border-radius: 6px; font-size: 12px; font-weight: 700; cursor: pointer;
+    }
+
     .toast {
       position: fixed; bottom: 80px; left: 50%; transform: translateX(-50%);
       background: var(--success); color: white; padding: 10px 20px; border-radius: 8px;
@@ -239,8 +254,26 @@
   <div id="root"></div>
 
   <script>
+    window.__swUpdateReady = false;
+    window.__swRegistration = null;
     if ('serviceWorker' in navigator) {
-      navigator.serviceWorker.register('./sw.js').catch(() => {});
+      navigator.serviceWorker.register('./sw.js').then(function(reg) {
+        window.__swRegistration = reg;
+        reg.addEventListener('updatefound', function() {
+          var newWorker = reg.installing;
+          newWorker.addEventListener('statechange', function() {
+            if (newWorker.state === 'installed' && navigator.serviceWorker.controller) {
+              window.__swUpdateReady = true;
+              window.dispatchEvent(new Event('sw-update-available'));
+            }
+          });
+        });
+      }).catch(function() {});
+      // Reload when the new service worker takes over
+      var refreshing = false;
+      navigator.serviceWorker.addEventListener('controllerchange', function() {
+        if (!refreshing) { refreshing = true; window.location.reload(); }
+      });
     }
   </script>
 
@@ -477,6 +510,20 @@
       const calorieTarget = targets.protein * 4 + targets.carbs * 4 + targets.fat * 9;
       const [showSettings, setShowSettings] = useState(false);
       const [toast, setToast] = useState(null);
+      const [updateAvailable, setUpdateAvailable] = useState(window.__swUpdateReady || false);
+
+      useEffect(() => {
+        const handler = () => setUpdateAvailable(true);
+        window.addEventListener('sw-update-available', handler);
+        return () => window.removeEventListener('sw-update-available', handler);
+      }, []);
+
+      const applyUpdate = () => {
+        const reg = window.__swRegistration;
+        if (reg && reg.waiting) {
+          reg.waiting.postMessage('SKIP_WAITING');
+        }
+      };
 
       // Form state
       const [ingredientName, setIngredientName] = useState('');
@@ -708,6 +755,14 @@
 
       return (
         <div className="app">
+          {/* Update banner */}
+          {updateAvailable && (
+            <div className="update-banner">
+              <span>A new version is available</span>
+              <button onClick={applyUpdate}>Update</button>
+            </div>
+          )}
+
           {/* Nav */}
           <div className="nav">
             <button className={view === 'daily' ? 'active' : ''} onClick={() => setView('daily')}>Today</button>
