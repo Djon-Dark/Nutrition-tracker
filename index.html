@@ -437,12 +437,12 @@
     function SettingsModal({ targets, onSave, onClose }) {
       const [form, setForm] = useState({ ...targets });
       const set = (k, v) => setForm(prev => ({ ...prev, [k]: v }));
+      const derivedCals = form.protein * 4 + form.carbs * 4 + form.fat * 9;
       return (
         <div className="modal-overlay" onClick={onClose}>
           <div className="modal" onClick={e => e.stopPropagation()}>
             <h2>Daily Targets</h2>
             {[
-              ['calories', 'Calories (kcal)'],
               ['protein', 'Protein (g)'],
               ['carbs', 'Carbs (g)'],
               ['fat', 'Fat (g)'],
@@ -453,6 +453,11 @@
                 <input type="number" value={form[key]} onChange={e => set(key, Number(e.target.value))} />
               </div>
             ))}
+            <div className="input-group">
+              <label>Calories (kcal) — derived</label>
+              <input type="text" value={derivedCals + ' kcal'} disabled style={{ opacity: 0.6 }} />
+              <span style={{ fontSize: 11, color: 'var(--text-dim)', marginTop: 4 }}>P×4 + C×4 + F×9</span>
+            </div>
             <div className="actions">
               <button className="btn btn-secondary" onClick={onClose}>Cancel</button>
               <button className="btn btn-primary" onClick={() => { onSave(form); onClose(); }}>Save</button>
@@ -468,7 +473,8 @@
       const [ingredients, setIngredients] = useState(() => loadState('nt_today', []));
       const [savedFoods, setSavedFoods] = useState(() => loadState('nt_saved_foods', {}));
       const [history, setHistory] = useState(() => loadState('nt_history', []));
-      const [targets, setTargets] = useState(() => loadState('nt_targets', { calories: 2000, protein: 150, carbs: 250, fat: 70, fiber: 30 }));
+      const [targets, setTargets] = useState(() => loadState('nt_targets', { protein: 150, carbs: 250, fat: 70, fiber: 30 }));
+      const calorieTarget = targets.protein * 4 + targets.carbs * 4 + targets.fat * 9;
       const [showSettings, setShowSettings] = useState(false);
       const [toast, setToast] = useState(null);
 
@@ -727,11 +733,11 @@
                   <div className="label">Calories</div>
                   <div className="value" style={{ color: 'var(--calories)' }}>
                     {Math.round(totals.calories)}
-                    <span className="target"> / {targets.calories}</span>
+                    <span className="target"> / {calorieTarget}</span>
                   </div>
                   <div className="progress-bar" style={{
-                    width: `${Math.min(100, (totals.calories / targets.calories) * 100)}%`,
-                    backgroundColor: totals.calories > targets.calories ? 'var(--danger)' : 'var(--calories)',
+                    width: `${Math.min(100, (totals.calories / calorieTarget) * 100)}%`,
+                    backgroundColor: totals.calories > calorieTarget ? 'var(--danger)' : 'var(--calories)',
                   }} />
                 </div>
                 {[
@@ -879,7 +885,7 @@
                     <SimpleBarChart
                       data={chartData}
                       dataKey="calories"
-                      targetValue={targets.calories}
+                      targetValue={calorieTarget}
                       color="#6c5ce7"
                       overColor="#ff4757"
                     />
