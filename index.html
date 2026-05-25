@@ -763,6 +763,12 @@
             </div>
           )}
 
+          {/* App title */}
+          <div style={{ textAlign: 'center', marginBottom: 12 }}>
+            <div style={{ fontSize: 22, fontWeight: 700, letterSpacing: '0.5px', color: 'var(--text)' }}>NutriTrack</div>
+            <div style={{ fontSize: 10, color: 'var(--text-dim)', letterSpacing: '1px' }}>v1.1</div>
+          </div>
+
           {/* Nav */}
           <div className="nav">
             <button className={view === 'daily' ? 'active' : ''} onClick={() => setView('daily')}>Today</button>
