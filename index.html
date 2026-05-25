@@ -1,0 +1,986 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no" />
+  <meta name="theme-color" content="#1a1a2e" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+  <link rel="manifest" href="manifest.json" />
+  <title>NutriTrack</title>
+  <script crossorigin src="https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.production.min.js"></script>
+  <script crossorigin src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js"></script>
+  <script crossorigin src="https://cdnjs.cloudflare.com/ajax/libs/babel-standalone/7.23.9/babel.min.js"></script>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg: #0f0f1a;
+      --surface: #1a1a2e;
+      --surface2: #232340;
+      --border: #2a2a4a;
+      --text: #e8e8f0;
+      --text-dim: #8888a8;
+      --accent: #6c5ce7;
+      --accent-glow: rgba(108, 92, 231, 0.3);
+      --calories: #ff6b6b;
+      --protein: #4ecdc4;
+      --carbs: #ffd93d;
+      --fat: #ff8a5c;
+      --fiber: #a8e6cf;
+      --danger: #ff4757;
+      --success: #2ed573;
+      --radius: 12px;
+      --font: 'Segoe UI', system-ui, -apple-system, sans-serif;
+    }
+
+    body {
+      font-family: var(--font);
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+      -webkit-tap-highlight-color: transparent;
+    }
+
+    input, button, select { font-family: inherit; }
+
+    /* Scrollbar */
+    ::-webkit-scrollbar { width: 6px; }
+    ::-webkit-scrollbar-track { background: transparent; }
+    ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+
+    /* App shell */
+    .app { max-width: 600px; margin: 0 auto; padding: 16px; padding-bottom: 80px; }
+
+    /* Navigation tabs */
+    .nav { display: flex; gap: 4px; margin-bottom: 20px; background: var(--surface); border-radius: var(--radius); padding: 4px; }
+    .nav button {
+      flex: 1; padding: 10px; border: none; background: transparent; color: var(--text-dim);
+      border-radius: 8px; font-size: 14px; font-weight: 600; cursor: pointer; transition: all 0.2s;
+    }
+    .nav button.active { background: var(--accent); color: white; }
+
+    /* Summary cards */
+    .summary { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 20px; }
+    .summary-card {
+      background: var(--surface); border-radius: var(--radius); padding: 14px;
+      border: 1px solid var(--border); position: relative; overflow: hidden;
+    }
+    .summary-card.calories { grid-column: 1 / -1; }
+    .summary-card .label { font-size: 11px; text-transform: uppercase; letter-spacing: 1px; color: var(--text-dim); margin-bottom: 4px; }
+    .summary-card .value { font-size: 24px; font-weight: 700; }
+    .summary-card.calories .value { font-size: 32px; }
+    .summary-card .target { font-size: 12px; color: var(--text-dim); }
+    .summary-card .progress-bar {
+      position: absolute; bottom: 0; left: 0; height: 3px; border-radius: 0 2px 0 0; transition: width 0.4s ease;
+    }
+
+    /* Add ingredient form */
+    .add-form {
+      background: var(--surface); border-radius: var(--radius); padding: 16px;
+      border: 1px solid var(--border); margin-bottom: 16px;
+    }
+    .add-form h3 { font-size: 14px; color: var(--text-dim); margin-bottom: 12px; font-weight: 600; }
+    .form-row { display: flex; gap: 10px; margin-bottom: 10px; }
+    .form-row.macros { flex-wrap: wrap; }
+    .input-group { display: flex; flex-direction: column; gap: 4px; flex: 1; min-width: 0; }
+    .input-group.ingredient { flex: 3; }
+    .input-group.amount { flex: 1; min-width: 80px; }
+    .input-group.unit-group { flex: 0.8; min-width: 60px; }
+    .input-group label { font-size: 11px; color: var(--text-dim); text-transform: uppercase; letter-spacing: 0.5px; }
+    .input-group input, .input-group select {
+      background: var(--surface2); border: 1px solid var(--border); color: var(--text);
+      padding: 10px 12px; border-radius: 8px; font-size: 14px; outline: none; transition: border-color 0.2s;
+    }
+    .input-group input:focus, .input-group select:focus { border-color: var(--accent); }
+    .input-group input::placeholder { color: var(--text-dim); opacity: 0.5; }
+    .macro-input-group { flex: 1; min-width: 70px; }
+    .macro-input-group input { width: 100%; text-align: center; padding: 8px 4px; font-size: 13px; }
+    .macro-input-group label.cal { color: var(--calories); }
+    .macro-input-group label.pro { color: var(--protein); }
+    .macro-input-group label.carb { color: var(--carbs); }
+    .macro-input-group label.fat { color: var(--fat); }
+    .macro-input-group label.fib { color: var(--fiber); }
+
+    .btn {
+      padding: 10px 20px; border: none; border-radius: 8px; font-size: 14px; font-weight: 600;
+      cursor: pointer; transition: all 0.2s;
+    }
+    .btn-primary { background: var(--accent); color: white; width: 100%; }
+    .btn-primary:hover { filter: brightness(1.1); }
+    .btn-primary:disabled { opacity: 0.4; cursor: not-allowed; }
+    .btn-danger { background: var(--danger); color: white; }
+    .btn-danger:hover { filter: brightness(1.1); }
+    .btn-secondary { background: var(--surface2); color: var(--text); border: 1px solid var(--border); }
+
+    /* Autocomplete dropdown */
+    .autocomplete-wrapper { position: relative; }
+    .autocomplete-dropdown {
+      position: absolute; top: 100%; left: 0; right: 0; background: var(--surface2);
+      border: 1px solid var(--border); border-radius: 8px; margin-top: 4px; max-height: 200px;
+      overflow-y: auto; z-index: 100; box-shadow: 0 8px 24px rgba(0,0,0,0.4);
+    }
+    .autocomplete-item {
+      padding: 10px 12px; cursor: pointer; font-size: 13px; display: flex;
+      justify-content: space-between; align-items: center; border-bottom: 1px solid var(--border);
+    }
+    .autocomplete-item:last-child { border-bottom: none; }
+    .autocomplete-item:hover, .autocomplete-item.highlighted { background: var(--accent); color: white; }
+    .autocomplete-item .source { font-size: 10px; opacity: 0.6; padding: 2px 6px; background: rgba(255,255,255,0.1); border-radius: 4px; }
+    .autocomplete-item .name { flex: 1; }
+
+    /* Ingredient list */
+    .ingredient-list { display: flex; flex-direction: column; gap: 8px; }
+    .ingredient-item {
+      background: var(--surface); border-radius: var(--radius); padding: 12px 14px;
+      border: 1px solid var(--border); display: flex; align-items: center; gap: 10px;
+      animation: slideIn 0.2s ease;
+    }
+    @keyframes slideIn { from { opacity: 0; transform: translateY(-8px); } to { opacity: 1; transform: translateY(0); } }
+    .ingredient-item .info { flex: 1; min-width: 0; }
+    .ingredient-item .name { font-weight: 600; font-size: 14px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .ingredient-item .amount-label { font-size: 12px; color: var(--text-dim); }
+    .ingredient-item .macros-row { display: flex; gap: 8px; font-size: 11px; margin-top: 4px; flex-wrap: wrap; }
+    .ingredient-item .macro-pill { padding: 2px 8px; border-radius: 10px; font-weight: 600; }
+    .ingredient-item .macro-pill.cal { background: rgba(255,107,107,0.15); color: var(--calories); }
+    .ingredient-item .macro-pill.pro { background: rgba(78,205,196,0.15); color: var(--protein); }
+    .ingredient-item .macro-pill.carb { background: rgba(255,217,61,0.15); color: var(--carbs); }
+    .ingredient-item .macro-pill.fat { background: rgba(255,138,92,0.15); color: var(--fat); }
+    .ingredient-item .macro-pill.fib { background: rgba(168,230,207,0.15); color: var(--fiber); }
+    .ingredient-item .delete-btn {
+      background: none; border: none; color: var(--text-dim); cursor: pointer; font-size: 18px;
+      padding: 4px 8px; border-radius: 6px; transition: all 0.2s; flex-shrink: 0;
+    }
+    .ingredient-item .delete-btn:hover { color: var(--danger); background: rgba(255,71,87,0.1); }
+
+    /* End day */
+    .end-day-section { margin-top: 20px; padding-top: 16px; border-top: 1px solid var(--border); display: flex; gap: 10px; }
+
+    /* Weekly view */
+    .weekly-chart { background: var(--surface); border-radius: var(--radius); padding: 16px; border: 1px solid var(--border); margin-bottom: 16px; }
+    .weekly-chart h3 { font-size: 14px; color: var(--text-dim); margin-bottom: 12px; }
+    .weekly-table { width: 100%; border-collapse: collapse; font-size: 13px; }
+    .weekly-table th { text-align: left; padding: 10px 8px; color: var(--text-dim); font-size: 11px; text-transform: uppercase; letter-spacing: 0.5px; border-bottom: 1px solid var(--border); }
+    .weekly-table td { padding: 10px 8px; border-bottom: 1px solid var(--border); }
+    .weekly-table tr:last-child td { border-bottom: none; }
+
+    /* Settings */
+    .modal-overlay {
+      position: fixed; inset: 0; background: rgba(0,0,0,0.7); display: flex; align-items: center;
+      justify-content: center; z-index: 200; padding: 16px;
+    }
+    .modal {
+      background: var(--surface); border-radius: var(--radius); padding: 24px; width: 100%;
+      max-width: 400px; border: 1px solid var(--border);
+    }
+    .modal h2 { font-size: 18px; margin-bottom: 16px; }
+    .modal .form-row { margin-bottom: 12px; }
+    .modal .input-group { margin-bottom: 12px; }
+    .modal .actions { display: flex; gap: 10px; margin-top: 20px; }
+    .modal .actions .btn { flex: 1; }
+
+    .settings-btn {
+      position: fixed; bottom: 20px; right: 20px; width: 48px; height: 48px; border-radius: 50%;
+      background: var(--accent); border: none; color: white; font-size: 20px; cursor: pointer;
+      box-shadow: 0 4px 12px var(--accent-glow); z-index: 50; transition: transform 0.2s;
+    }
+    .settings-btn:hover { transform: scale(1.1); }
+
+    /* Loading spinner */
+    .loading { display: inline-block; width: 16px; height: 16px; border: 2px solid var(--border); border-top-color: var(--accent); border-radius: 50%; animation: spin 0.6s linear infinite; }
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    .empty-state { text-align: center; padding: 40px 20px; color: var(--text-dim); }
+    .empty-state .icon { font-size: 40px; margin-bottom: 12px; }
+    .empty-state p { font-size: 14px; }
+
+    .searching-indicator { font-size: 12px; color: var(--text-dim); display: flex; align-items: center; gap: 8px; padding: 8px 0; }
+
+    /* Day detail expandable */
+    .day-detail { background: var(--surface2); border-radius: 8px; margin-top: 4px; padding: 10px; }
+    .day-detail .detail-item { display: flex; justify-content: space-between; font-size: 12px; padding: 3px 0; color: var(--text-dim); }
+
+    .clickable-row { cursor: pointer; }
+    .clickable-row:hover { background: var(--surface2); }
+
+    /* Toast */
+    /* Editing banner */
+    .editing-banner {
+      background: var(--surface); border: 1px solid var(--accent); border-radius: var(--radius);
+      padding: 12px 16px; margin-bottom: 16px; display: flex; align-items: center; justify-content: space-between;
+    }
+    .editing-banner .label { font-size: 13px; color: var(--accent); font-weight: 600; }
+    .editing-banner .date { font-size: 12px; color: var(--text-dim); }
+    .editing-banner .cancel-btn {
+      background: none; border: 1px solid var(--border); color: var(--text-dim); padding: 6px 12px;
+      border-radius: 6px; font-size: 12px; cursor: pointer; transition: all 0.2s;
+    }
+    .editing-banner .cancel-btn:hover { border-color: var(--danger); color: var(--danger); }
+
+    /* Edit icon in weekly table */
+    .edit-day-btn {
+      background: none; border: 1px solid var(--border); color: var(--text-dim); cursor: pointer;
+      padding: 4px 10px; border-radius: 6px; font-size: 12px; transition: all 0.2s;
+      display: inline-flex; align-items: center; gap: 4px;
+    }
+    .edit-day-btn:hover { border-color: var(--accent); color: var(--accent); }
+    .edit-day-btn svg { width: 12px; height: 12px; }
+
+    .toast {
+      position: fixed; bottom: 80px; left: 50%; transform: translateX(-50%);
+      background: var(--success); color: white; padding: 10px 20px; border-radius: 8px;
+      font-size: 14px; font-weight: 600; z-index: 300; animation: toastIn 0.3s ease;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+    }
+    @keyframes toastIn { from { opacity: 0; transform: translateX(-50%) translateY(10px); } }
+  </style>
+</head>
+<body>
+  <div id="root"></div>
+
+  <script>
+    if ('serviceWorker' in navigator) {
+      navigator.serviceWorker.register('./sw.js').catch(() => {});
+    }
+  </script>
+
+  <script type="text/babel">
+    const { useState, useEffect, useRef, useCallback, useMemo } = React;
+    // Simple inline bar chart component (no external dependency)
+    function SimpleBarChart({ data, dataKey, targetValue, color, overColor }) {
+      if (!data || data.length === 0) return null;
+      const maxVal = Math.max(...data.map(d => d[dataKey]), targetValue || 0) * 1.1 || 1;
+      const barWidth = Math.min(40, Math.floor((100 / data.length) * 0.6));
+      const gap = (100 - barWidth * data.length) / (data.length + 1);
+      const [hovered, setHovered] = useState(null);
+      return (
+        <div style={{ position: 'relative', width: '100%', height: 200 }}>
+          <svg viewBox="0 0 400 200" width="100%" height="100%" style={{ overflow: 'visible' }}>
+            {/* Y-axis labels */}
+            <text x="30" y="18" fill="#8888a8" fontSize="10" textAnchor="end">{Math.round(maxVal)}</text>
+            <text x="30" y="168" fill="#8888a8" fontSize="10" textAnchor="end">0</text>
+            {/* Target line */}
+            {targetValue > 0 && (
+              <>
+                <line x1="35" y1={170 - (targetValue / maxVal) * 155} x2="395" y2={170 - (targetValue / maxVal) * 155}
+                  stroke="#8888a8" strokeDasharray="4 4" strokeWidth="1" />
+                <text x="395" y={170 - (targetValue / maxVal) * 155 - 4} fill="#8888a8" fontSize="9" textAnchor="end">{targetValue}</text>
+              </>
+            )}
+            {/* Bars */}
+            {data.map((d, i) => {
+              const barH = Math.max(2, (d[dataKey] / maxVal) * 155);
+              const x = 40 + i * ((355) / data.length) + ((355) / data.length - barWidth * 3.5) / 2;
+              const y = 170 - barH;
+              const isOver = targetValue && d[dataKey] > targetValue;
+              return (
+                <g key={i} onMouseEnter={() => setHovered(i)} onMouseLeave={() => setHovered(null)}>
+                  <rect x={x} y={y} width={barWidth * 3.5} height={barH} rx="4" ry="4"
+                    fill={isOver ? (overColor || '#ff4757') : (color || '#6c5ce7')} opacity={hovered === i ? 1 : 0.85} />
+                  <text x={x + barWidth * 1.75} y="188" fill="#8888a8" fontSize="9" textAnchor="middle">{d.date}</text>
+                  {hovered === i && (
+                    <text x={x + barWidth * 1.75} y={y - 6} fill="#e8e8f0" fontSize="11" textAnchor="middle" fontWeight="bold">
+                      {Math.round(d[dataKey])}
+                    </text>
+                  )}
+                </g>
+              );
+            })}
+          </svg>
+        </div>
+      );
+    }
+
+    // ─── Built-in food database (per 100g) ─────────────────────────
+    const BUILT_IN_FOODS = {
+      "chicken breast": { calories: 165, protein: 31, carbs: 0, fat: 3.6, fiber: 0 },
+      "chicken thigh": { calories: 209, protein: 26, carbs: 0, fat: 10.9, fiber: 0 },
+      "ground beef (lean)": { calories: 250, protein: 26, carbs: 0, fat: 15, fiber: 0 },
+      "ground beef": { calories: 250, protein: 26, carbs: 0, fat: 15, fiber: 0 },
+      "beef steak": { calories: 271, protein: 26, carbs: 0, fat: 18, fiber: 0 },
+      "pork chop": { calories: 231, protein: 25, carbs: 0, fat: 14, fiber: 0 },
+      "pork tenderloin": { calories: 143, protein: 26, carbs: 0, fat: 3.5, fiber: 0 },
+      "bacon": { calories: 541, protein: 37, carbs: 1.4, fat: 42, fiber: 0 },
+      "salmon": { calories: 208, protein: 20, carbs: 0, fat: 13, fiber: 0 },
+      "tuna": { calories: 132, protein: 28, carbs: 0, fat: 1.3, fiber: 0 },
+      "tuna (canned)": { calories: 116, protein: 25.5, carbs: 0, fat: 0.8, fiber: 0 },
+      "shrimp": { calories: 99, protein: 24, carbs: 0.2, fat: 0.3, fiber: 0 },
+      "cod": { calories: 82, protein: 18, carbs: 0, fat: 0.7, fiber: 0 },
+      "turkey breast": { calories: 135, protein: 30, carbs: 0, fat: 1, fiber: 0 },
+      "egg": { calories: 155, protein: 13, carbs: 1.1, fat: 11, fiber: 0 },
+      "egg white": { calories: 52, protein: 11, carbs: 0.7, fat: 0.2, fiber: 0 },
+      "whole milk": { calories: 61, protein: 3.2, carbs: 4.8, fat: 3.3, fiber: 0 },
+      "skim milk": { calories: 34, protein: 3.4, carbs: 5, fat: 0.1, fiber: 0 },
+      "cottage cheese": { calories: 98, protein: 11, carbs: 3.4, fat: 4.3, fiber: 0 },
+      "greek yogurt": { calories: 97, protein: 9, carbs: 3.6, fat: 5, fiber: 0 },
+      "yogurt (plain)": { calories: 61, protein: 3.5, carbs: 4.7, fat: 3.3, fiber: 0 },
+      "cheddar cheese": { calories: 403, protein: 25, carbs: 1.3, fat: 33, fiber: 0 },
+      "mozzarella": { calories: 280, protein: 28, carbs: 3.1, fat: 17, fiber: 0 },
+      "parmesan": { calories: 431, protein: 38, carbs: 4.1, fat: 29, fiber: 0 },
+      "cream cheese": { calories: 342, protein: 6, carbs: 4, fat: 34, fiber: 0 },
+      "butter": { calories: 717, protein: 0.9, carbs: 0.1, fat: 81, fiber: 0 },
+      "olive oil": { calories: 884, protein: 0, carbs: 0, fat: 100, fiber: 0 },
+      "coconut oil": { calories: 862, protein: 0, carbs: 0, fat: 100, fiber: 0 },
+      "white rice": { calories: 130, protein: 2.7, carbs: 28, fat: 0.3, fiber: 0.4 },
+      "brown rice": { calories: 112, protein: 2.3, carbs: 24, fat: 0.8, fiber: 1.8 },
+      "pasta": { calories: 131, protein: 5, carbs: 25, fat: 1.1, fiber: 1.8 },
+      "bread (white)": { calories: 265, protein: 9, carbs: 49, fat: 3.2, fiber: 2.7 },
+      "bread (whole wheat)": { calories: 247, protein: 13, carbs: 41, fat: 3.4, fiber: 7 },
+      "oats": { calories: 389, protein: 17, carbs: 66, fat: 6.9, fiber: 11 },
+      "quinoa": { calories: 120, protein: 4.4, carbs: 21, fat: 1.9, fiber: 2.8 },
+      "potato": { calories: 77, protein: 2, carbs: 17, fat: 0.1, fiber: 2.2 },
+      "sweet potato": { calories: 86, protein: 1.6, carbs: 20, fat: 0.1, fiber: 3 },
+      "banana": { calories: 89, protein: 1.1, carbs: 23, fat: 0.3, fiber: 2.6 },
+      "apple": { calories: 52, protein: 0.3, carbs: 14, fat: 0.2, fiber: 2.4 },
+      "orange": { calories: 47, protein: 0.9, carbs: 12, fat: 0.1, fiber: 2.4 },
+      "strawberry": { calories: 32, protein: 0.7, carbs: 7.7, fat: 0.3, fiber: 2 },
+      "blueberry": { calories: 57, protein: 0.7, carbs: 14, fat: 0.3, fiber: 2.4 },
+      "grapes": { calories: 69, protein: 0.7, carbs: 18, fat: 0.2, fiber: 0.9 },
+      "watermelon": { calories: 30, protein: 0.6, carbs: 7.6, fat: 0.2, fiber: 0.4 },
+      "mango": { calories: 60, protein: 0.8, carbs: 15, fat: 0.4, fiber: 1.6 },
+      "pineapple": { calories: 50, protein: 0.5, carbs: 13, fat: 0.1, fiber: 1.4 },
+      "avocado": { calories: 160, protein: 2, carbs: 8.5, fat: 15, fiber: 6.7 },
+      "broccoli": { calories: 34, protein: 2.8, carbs: 7, fat: 0.4, fiber: 2.6 },
+      "spinach": { calories: 23, protein: 2.9, carbs: 3.6, fat: 0.4, fiber: 2.2 },
+      "kale": { calories: 49, protein: 4.3, carbs: 9, fat: 0.9, fiber: 3.6 },
+      "carrot": { calories: 41, protein: 0.9, carbs: 10, fat: 0.2, fiber: 2.8 },
+      "tomato": { calories: 18, protein: 0.9, carbs: 3.9, fat: 0.2, fiber: 1.2 },
+      "cucumber": { calories: 15, protein: 0.7, carbs: 3.6, fat: 0.1, fiber: 0.5 },
+      "bell pepper": { calories: 31, protein: 1, carbs: 6, fat: 0.3, fiber: 2.1 },
+      "onion": { calories: 40, protein: 1.1, carbs: 9.3, fat: 0.1, fiber: 1.7 },
+      "garlic": { calories: 149, protein: 6.4, carbs: 33, fat: 0.5, fiber: 2.1 },
+      "mushroom": { calories: 22, protein: 3.1, carbs: 3.3, fat: 0.3, fiber: 1 },
+      "zucchini": { calories: 17, protein: 1.2, carbs: 3.1, fat: 0.3, fiber: 1 },
+      "cauliflower": { calories: 25, protein: 1.9, carbs: 5, fat: 0.3, fiber: 2 },
+      "green beans": { calories: 31, protein: 1.8, carbs: 7, fat: 0.1, fiber: 3.4 },
+      "corn": { calories: 86, protein: 3.3, carbs: 19, fat: 1.4, fiber: 2.7 },
+      "peas": { calories: 81, protein: 5.4, carbs: 14, fat: 0.4, fiber: 5.7 },
+      "lentils": { calories: 116, protein: 9, carbs: 20, fat: 0.4, fiber: 7.9 },
+      "chickpeas": { calories: 164, protein: 8.9, carbs: 27, fat: 2.6, fiber: 7.6 },
+      "black beans": { calories: 132, protein: 8.9, carbs: 24, fat: 0.5, fiber: 8.7 },
+      "kidney beans": { calories: 127, protein: 8.7, carbs: 22, fat: 0.5, fiber: 6.4 },
+      "tofu": { calories: 76, protein: 8, carbs: 1.9, fat: 4.8, fiber: 0.3 },
+      "tempeh": { calories: 192, protein: 20, carbs: 7.6, fat: 11, fiber: 0 },
+      "almonds": { calories: 579, protein: 21, carbs: 22, fat: 50, fiber: 12 },
+      "walnuts": { calories: 654, protein: 15, carbs: 14, fat: 65, fiber: 6.7 },
+      "peanuts": { calories: 567, protein: 26, carbs: 16, fat: 49, fiber: 8.5 },
+      "peanut butter": { calories: 588, protein: 25, carbs: 20, fat: 50, fiber: 6 },
+      "cashews": { calories: 553, protein: 18, carbs: 30, fat: 44, fiber: 3.3 },
+      "chia seeds": { calories: 486, protein: 17, carbs: 42, fat: 31, fiber: 34 },
+      "flax seeds": { calories: 534, protein: 18, carbs: 29, fat: 42, fiber: 27 },
+      "sunflower seeds": { calories: 584, protein: 21, carbs: 20, fat: 51, fiber: 8.6 },
+      "honey": { calories: 304, protein: 0.3, carbs: 82, fat: 0, fiber: 0.2 },
+      "sugar": { calories: 387, protein: 0, carbs: 100, fat: 0, fiber: 0 },
+      "dark chocolate": { calories: 546, protein: 5, carbs: 60, fat: 31, fiber: 7 },
+      "milk chocolate": { calories: 535, protein: 8, carbs: 59, fat: 30, fiber: 3.4 },
+      "whey protein": { calories: 400, protein: 80, carbs: 10, fat: 5, fiber: 0 },
+      "protein bar": { calories: 350, protein: 20, carbs: 40, fat: 12, fiber: 5 },
+      "hummus": { calories: 166, protein: 8, carbs: 14, fat: 10, fiber: 6 },
+      "sour cream": { calories: 198, protein: 2.4, carbs: 4.6, fat: 20, fiber: 0 },
+      "mayo": { calories: 680, protein: 1, carbs: 0.6, fat: 75, fiber: 0 },
+      "ketchup": { calories: 112, protein: 1.7, carbs: 26, fat: 0.1, fiber: 0.3 },
+      "soy sauce": { calories: 53, protein: 8.1, carbs: 4.9, fat: 0.6, fiber: 0.8 },
+      "tortilla (flour)": { calories: 312, protein: 8.3, carbs: 52, fat: 8.4, fiber: 2.2 },
+      "tortilla (corn)": { calories: 218, protein: 5.7, carbs: 44, fat: 2.8, fiber: 5.4 },
+      "granola": { calories: 471, protein: 10, carbs: 64, fat: 20, fiber: 5.3 },
+      "cereal (corn flakes)": { calories: 357, protein: 7, carbs: 84, fat: 0.4, fiber: 3.3 },
+      "ice cream": { calories: 207, protein: 3.5, carbs: 24, fat: 11, fiber: 0.7 },
+      "white wine": { calories: 82, protein: 0.1, carbs: 2.6, fat: 0, fiber: 0 },
+      "beer": { calories: 43, protein: 0.5, carbs: 3.6, fat: 0, fiber: 0 },
+      "orange juice": { calories: 45, protein: 0.7, carbs: 10, fat: 0.2, fiber: 0.2 },
+      "coconut milk": { calories: 230, protein: 2.3, carbs: 6, fat: 24, fiber: 0 },
+      "almond milk": { calories: 17, protein: 0.6, carbs: 1.5, fat: 1.1, fiber: 0.2 },
+      "oat milk": { calories: 43, protein: 1, carbs: 7, fat: 1.5, fiber: 0.8 },
+      "cream": { calories: 340, protein: 2, carbs: 3, fat: 36, fiber: 0 },
+      "feta cheese": { calories: 264, protein: 14, carbs: 4, fat: 21, fiber: 0 },
+      "ricotta": { calories: 174, protein: 11, carbs: 3, fat: 13, fiber: 0 },
+      "ham": { calories: 145, protein: 21, carbs: 1.5, fat: 6, fiber: 0 },
+      "salami": { calories: 336, protein: 22, carbs: 1.2, fat: 26, fiber: 0 },
+      "sausage": { calories: 301, protein: 12, carbs: 2, fat: 27, fiber: 0 },
+    };
+
+    // ─── localStorage helpers ──────────────────────────────────────
+    function loadState(key, fallback) {
+      try { const v = localStorage.getItem(key); return v ? JSON.parse(v) : fallback; }
+      catch { return fallback; }
+    }
+    function saveState(key, value) { localStorage.setItem(key, JSON.stringify(value)); }
+
+    // ─── Open Food Facts search ────────────────────────────────────
+    async function searchOpenFoodFacts(query) {
+      try {
+        const url = `https://world.openfoodfacts.org/cgi/search.pl?search_terms=${encodeURIComponent(query)}&search_simple=1&action=process&json=1&page_size=5&fields=product_name,nutriments`;
+        const res = await fetch(url);
+        const data = await res.json();
+        if (!data.products || data.products.length === 0) return [];
+        return data.products
+          .filter(p => p.product_name && p.nutriments)
+          .map(p => ({
+            name: p.product_name,
+            calories: Math.round(p.nutriments['energy-kcal_100g'] || p.nutriments['energy-kcal'] || 0),
+            protein: Math.round((p.nutriments.proteins_100g || 0) * 10) / 10,
+            carbs: Math.round((p.nutriments.carbohydrates_100g || 0) * 10) / 10,
+            fat: Math.round((p.nutriments.fat_100g || 0) * 10) / 10,
+            fiber: Math.round((p.nutriments.fiber_100g || 0) * 10) / 10,
+          }))
+          .filter(f => f.calories > 0);
+      } catch { return []; }
+    }
+
+    // ─── Toast component ───────────────────────────────────────────
+    function Toast({ message, onDone }) {
+      useEffect(() => { const t = setTimeout(onDone, 2000); return () => clearTimeout(t); }, []);
+      return <div className="toast">{message}</div>;
+    }
+
+    // ─── Settings modal ────────────────────────────────────────────
+    function SettingsModal({ targets, onSave, onClose }) {
+      const [form, setForm] = useState({ ...targets });
+      const set = (k, v) => setForm(prev => ({ ...prev, [k]: v }));
+      return (
+        <div className="modal-overlay" onClick={onClose}>
+          <div className="modal" onClick={e => e.stopPropagation()}>
+            <h2>Daily Targets</h2>
+            {[
+              ['calories', 'Calories (kcal)'],
+              ['protein', 'Protein (g)'],
+              ['carbs', 'Carbs (g)'],
+              ['fat', 'Fat (g)'],
+              ['fiber', 'Fiber (g)'],
+            ].map(([key, label]) => (
+              <div className="input-group" key={key}>
+                <label>{label}</label>
+                <input type="number" value={form[key]} onChange={e => set(key, Number(e.target.value))} />
+              </div>
+            ))}
+            <div className="actions">
+              <button className="btn btn-secondary" onClick={onClose}>Cancel</button>
+              <button className="btn btn-primary" onClick={() => { onSave(form); onClose(); }}>Save</button>
+            </div>
+          </div>
+        </div>
+      );
+    }
+
+    // ─── Main App ──────────────────────────────────────────────────
+    function App() {
+      const [view, setView] = useState('daily');
+      const [ingredients, setIngredients] = useState(() => loadState('nt_today', []));
+      const [savedFoods, setSavedFoods] = useState(() => loadState('nt_saved_foods', {}));
+      const [history, setHistory] = useState(() => loadState('nt_history', []));
+      const [targets, setTargets] = useState(() => loadState('nt_targets', { calories: 2000, protein: 150, carbs: 250, fat: 70, fiber: 30 }));
+      const [showSettings, setShowSettings] = useState(false);
+      const [toast, setToast] = useState(null);
+
+      // Form state
+      const [ingredientName, setIngredientName] = useState('');
+      const [amount, setAmount] = useState('');
+      const [unit, setUnit] = useState('g');
+      const [macros, setMacros] = useState({ calories: '', protein: '', carbs: '', fat: '', fiber: '' });
+
+      // Autocomplete state
+      const [suggestions, setSuggestions] = useState([]);
+      const [showSuggestions, setShowSuggestions] = useState(false);
+      const [highlightIdx, setHighlightIdx] = useState(-1);
+      const [searching, setSearching] = useState(false);
+      const searchTimeout = useRef(null);
+      const inputRef = useRef(null);
+      const suggestionsRef = useRef(null);
+
+      // Confirm end day
+      const [showEndDayConfirm, setShowEndDayConfirm] = useState(false);
+
+      // Editing a past day
+      const [editingDate, setEditingDate] = useState(null);
+
+      // Expanded day in weekly view
+      const [expandedDay, setExpandedDay] = useState(null);
+
+      // Persist state
+      useEffect(() => saveState('nt_today', ingredients), [ingredients]);
+      useEffect(() => saveState('nt_saved_foods', savedFoods), [savedFoods]);
+      useEffect(() => saveState('nt_history', history), [history]);
+      useEffect(() => saveState('nt_targets', targets), [targets]);
+
+      // Close suggestions on outside click
+      useEffect(() => {
+        const handler = (e) => {
+          if (suggestionsRef.current && !suggestionsRef.current.contains(e.target) && e.target !== inputRef.current) {
+            setShowSuggestions(false);
+          }
+        };
+        document.addEventListener('mousedown', handler);
+        return () => document.removeEventListener('mousedown', handler);
+      }, []);
+
+      // Totals
+      const totals = useMemo(() => {
+        const t = { calories: 0, protein: 0, carbs: 0, fat: 0, fiber: 0 };
+        ingredients.forEach(ing => {
+          t.calories += ing.calories || 0;
+          t.protein += ing.protein || 0;
+          t.carbs += ing.carbs || 0;
+          t.fat += ing.fat || 0;
+          t.fiber += ing.fiber || 0;
+        });
+        return t;
+      }, [ingredients]);
+
+      // Search for ingredient
+      const searchIngredient = useCallback(async (query) => {
+        if (query.length < 2) { setSuggestions([]); setShowSuggestions(false); return; }
+        const q = query.toLowerCase();
+        const results = [];
+
+        // Search saved foods first
+        Object.entries(savedFoods).forEach(([name, data]) => {
+          if (name.includes(q)) results.push({ ...data, name, source: 'saved' });
+        });
+
+        // Search built-in
+        Object.entries(BUILT_IN_FOODS).forEach(([name, data]) => {
+          if (name.includes(q) && !results.find(r => r.name === name)) {
+            results.push({ ...data, name, source: 'built-in' });
+          }
+        });
+
+        setSuggestions(results);
+        setShowSuggestions(true);
+        setHighlightIdx(-1);
+
+        // If few results, search API
+        if (results.length < 3) {
+          setSearching(true);
+          const apiResults = await searchOpenFoodFacts(query);
+          setSearching(false);
+          if (apiResults.length > 0) {
+            const merged = [...results];
+            apiResults.forEach(ar => {
+              if (!merged.find(r => r.name.toLowerCase() === ar.name.toLowerCase())) {
+                merged.push({ ...ar, source: 'web' });
+              }
+            });
+            setSuggestions(merged.slice(0, 8));
+            setShowSuggestions(true);
+          }
+        }
+      }, [savedFoods]);
+
+      const handleIngredientInput = (value) => {
+        setIngredientName(value);
+        clearTimeout(searchTimeout.current);
+        searchTimeout.current = setTimeout(() => searchIngredient(value), 300);
+      };
+
+      const selectSuggestion = (suggestion) => {
+        setIngredientName(suggestion.name);
+        setShowSuggestions(false);
+        const amt = amount ? Number(amount) : 100;
+        const factor = unit === 'g' ? amt / 100 : amt;
+        setMacros({
+          calories: Math.round(suggestion.calories * factor),
+          protein: Math.round(suggestion.protein * factor * 10) / 10,
+          carbs: Math.round(suggestion.carbs * factor * 10) / 10,
+          fat: Math.round(suggestion.fat * factor * 10) / 10,
+          fiber: Math.round(suggestion.fiber * factor * 10) / 10,
+        });
+        if (!amount) setAmount('100');
+      };
+
+      // Recalculate macros when amount/unit changes and an ingredient is selected
+      const recalcMacros = (newAmount, newUnit) => {
+        const q = ingredientName.toLowerCase();
+        const food = savedFoods[q] || BUILT_IN_FOODS[q];
+        if (!food) return;
+        const amt = Number(newAmount) || 100;
+        const factor = newUnit === 'g' ? amt / 100 : amt;
+        setMacros({
+          calories: Math.round(food.calories * factor),
+          protein: Math.round(food.protein * factor * 10) / 10,
+          carbs: Math.round(food.carbs * factor * 10) / 10,
+          fat: Math.round(food.fat * factor * 10) / 10,
+          fiber: Math.round(food.fiber * factor * 10) / 10,
+        });
+      };
+
+      const addIngredient = () => {
+        if (!ingredientName.trim() || !amount) return;
+        const entry = {
+          id: Date.now(),
+          name: ingredientName.trim(),
+          amount: Number(amount),
+          unit,
+          calories: Number(macros.calories) || 0,
+          protein: Number(macros.protein) || 0,
+          carbs: Number(macros.carbs) || 0,
+          fat: Number(macros.fat) || 0,
+          fiber: Number(macros.fiber) || 0,
+        };
+
+        // Save to local memory (per 100g)
+        const factor = unit === 'g' ? Number(amount) / 100 : Number(amount);
+        if (factor > 0) {
+          const per100 = {
+            calories: Math.round(entry.calories / factor),
+            protein: Math.round(entry.protein / factor * 10) / 10,
+            carbs: Math.round(entry.carbs / factor * 10) / 10,
+            fat: Math.round(entry.fat / factor * 10) / 10,
+            fiber: Math.round(entry.fiber / factor * 10) / 10,
+          };
+          setSavedFoods(prev => ({ ...prev, [entry.name.toLowerCase()]: per100 }));
+        }
+
+        setIngredients(prev => [entry, ...prev]);
+        setIngredientName('');
+        setAmount('');
+        setMacros({ calories: '', protein: '', carbs: '', fat: '', fiber: '' });
+      };
+
+      const removeIngredient = (id) => {
+        setIngredients(prev => prev.filter(i => i.id !== id));
+      };
+
+      const endDay = () => {
+        if (ingredients.length === 0) return;
+        const dateToSave = editingDate || new Date().toISOString().split('T')[0];
+        const snapshot = {
+          date: dateToSave,
+          ingredients: [...ingredients],
+          totals: { ...totals },
+        };
+        setHistory(prev => {
+          const filtered = prev.filter(h => h.date !== dateToSave);
+          return [snapshot, ...filtered].sort((a, b) => b.date.localeCompare(a.date));
+        });
+        setIngredients([]);
+        setEditingDate(null);
+        setToast(editingDate ? 'Day updated!' : 'Day saved!');
+      };
+
+      const startEditingDay = (date) => {
+        const day = history.find(h => h.date === date);
+        if (!day) return;
+        // If there are unsaved ingredients for today, warn
+        if (ingredients.length > 0 && !editingDate) {
+          if (!window.confirm('You have unsaved items for today. Loading a past day will replace them. Continue?')) return;
+        }
+        setIngredients(day.ingredients.map(ing => ({ ...ing, id: ing.id || Date.now() + Math.random() })));
+        setEditingDate(date);
+        setView('daily');
+        setExpandedDay(null);
+      };
+
+      const cancelEditing = () => {
+        setIngredients(loadState('nt_today', []));
+        setEditingDate(null);
+      };
+
+      const handleKeyDown = (e) => {
+        if (!showSuggestions || suggestions.length === 0) {
+          if (e.key === 'Enter') { e.preventDefault(); addIngredient(); }
+          return;
+        }
+        if (e.key === 'ArrowDown') { e.preventDefault(); setHighlightIdx(i => Math.min(i + 1, suggestions.length - 1)); }
+        else if (e.key === 'ArrowUp') { e.preventDefault(); setHighlightIdx(i => Math.max(i - 1, 0)); }
+        else if (e.key === 'Enter' && highlightIdx >= 0) { e.preventDefault(); selectSuggestion(suggestions[highlightIdx]); }
+        else if (e.key === 'Escape') { setShowSuggestions(false); }
+      };
+
+      // Weekly chart data (last 7 days)
+      const chartData = useMemo(() => {
+        const last7 = history.slice(0, 7).reverse();
+        return last7.map(d => ({
+          date: new Date(d.date + 'T12:00:00').toLocaleDateString('en-US', { weekday: 'short', day: 'numeric' }),
+          rawDate: d.date,
+          calories: d.totals.calories,
+          protein: d.totals.protein,
+          carbs: d.totals.carbs,
+          fat: d.totals.fat,
+          fiber: d.totals.fiber,
+        }));
+      }, [history]);
+
+      return (
+        <div className="app">
+          {/* Nav */}
+          <div className="nav">
+            <button className={view === 'daily' ? 'active' : ''} onClick={() => setView('daily')}>Today</button>
+            <button className={view === 'weekly' ? 'active' : ''} onClick={() => setView('weekly')}>Weekly</button>
+          </div>
+
+          {view === 'daily' ? (
+            <>
+              {/* Editing banner */}
+              {editingDate && (
+                <div className="editing-banner">
+                  <div>
+                    <div className="label">Editing past day</div>
+                    <div className="date">{new Date(editingDate + 'T12:00:00').toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' })}</div>
+                  </div>
+                  <button className="cancel-btn" onClick={cancelEditing}>Cancel</button>
+                </div>
+              )}
+
+              {/* Summary cards */}
+              <div className="summary">
+                <div className="summary-card calories">
+                  <div className="label">Calories</div>
+                  <div className="value" style={{ color: 'var(--calories)' }}>
+                    {Math.round(totals.calories)}
+                    <span className="target"> / {targets.calories}</span>
+                  </div>
+                  <div className="progress-bar" style={{
+                    width: `${Math.min(100, (totals.calories / targets.calories) * 100)}%`,
+                    backgroundColor: totals.calories > targets.calories ? 'var(--danger)' : 'var(--calories)',
+                  }} />
+                </div>
+                {[
+                  ['Protein', 'protein', 'var(--protein)'],
+                  ['Carbs', 'carbs', 'var(--carbs)'],
+                  ['Fat', 'fat', 'var(--fat)'],
+                  ['Fiber', 'fiber', 'var(--fiber)'],
+                ].map(([label, key, color]) => (
+                  <div className="summary-card" key={key}>
+                    <div className="label">{label}</div>
+                    <div className="value" style={{ color }}>{Math.round(totals[key] * 10) / 10}g</div>
+                    <div className="target">/ {targets[key]}g</div>
+                    <div className="progress-bar" style={{
+                      width: `${Math.min(100, (totals[key] / targets[key]) * 100)}%`,
+                      backgroundColor: color,
+                    }} />
+                  </div>
+                ))}
+              </div>
+
+              {/* Add form */}
+              <div className="add-form">
+                <h3>Add Ingredient</h3>
+                <div className="form-row">
+                  <div className="input-group ingredient autocomplete-wrapper">
+                    <label>Ingredient</label>
+                    <input
+                      ref={inputRef}
+                      type="text"
+                      placeholder="e.g. chicken breast"
+                      value={ingredientName}
+                      onChange={e => handleIngredientInput(e.target.value)}
+                      onFocus={() => { if (suggestions.length > 0) setShowSuggestions(true); }}
+                      onKeyDown={handleKeyDown}
+                    />
+                    {showSuggestions && suggestions.length > 0 && (
+                      <div className="autocomplete-dropdown" ref={suggestionsRef}>
+                        {suggestions.map((s, idx) => (
+                          <div
+                            key={s.name + s.source}
+                            className={`autocomplete-item ${idx === highlightIdx ? 'highlighted' : ''}`}
+                            onClick={() => selectSuggestion(s)}
+                          >
+                            <span className="name">{s.name}</span>
+                            <span className="source">{s.source}</span>
+                          </div>
+                        ))}
+                        {searching && <div className="autocomplete-item"><span className="loading" /> <span style={{marginLeft: 8}}>Searching web...</span></div>}
+                      </div>
+                    )}
+                    {searching && !showSuggestions && (
+                      <div className="searching-indicator"><span className="loading" /> Searching web...</div>
+                    )}
+                  </div>
+                  <div className="input-group amount">
+                    <label>Amount</label>
+                    <input
+                      type="number"
+                      placeholder="100"
+                      value={amount}
+                      onChange={e => { setAmount(e.target.value); recalcMacros(e.target.value, unit); }}
+                      onKeyDown={handleKeyDown}
+                    />
+                  </div>
+                  <div className="input-group unit-group">
+                    <label>Unit</label>
+                    <select value={unit} onChange={e => { setUnit(e.target.value); recalcMacros(amount, e.target.value); }}>
+                      <option value="g">g</option>
+                      <option value="serving">srv</option>
+                    </select>
+                  </div>
+                </div>
+                <div className="form-row macros">
+                  {[
+                    ['calories', 'kcal', 'cal'],
+                    ['protein', 'P (g)', 'pro'],
+                    ['carbs', 'C (g)', 'carb'],
+                    ['fat', 'F (g)', 'fat'],
+                    ['fiber', 'Fib (g)', 'fib'],
+                  ].map(([key, label, cls]) => (
+                    <div className="input-group macro-input-group" key={key}>
+                      <label className={cls}>{label}</label>
+                      <input
+                        type="number"
+                        value={macros[key]}
+                        onChange={e => setMacros(prev => ({ ...prev, [key]: e.target.value }))}
+                        placeholder="0"
+                        onKeyDown={e => { if (e.key === 'Enter') addIngredient(); }}
+                      />
+                    </div>
+                  ))}
+                </div>
+                <button className="btn btn-primary" onClick={addIngredient} disabled={!ingredientName.trim() || !amount}>
+                  Add
+                </button>
+              </div>
+
+              {/* Ingredient list */}
+              <div className="ingredient-list">
+                {ingredients.length === 0 && (
+                  <div className="empty-state">
+                    <div className="icon">🍽️</div>
+                    <p>No ingredients yet. Add your first meal above!</p>
+                  </div>
+                )}
+                {ingredients.map(ing => (
+                  <div className="ingredient-item" key={ing.id}>
+                    <div className="info">
+                      <div className="name">{ing.name}</div>
+                      <div className="amount-label">{ing.amount} {ing.unit}</div>
+                      <div className="macros-row">
+                        <span className="macro-pill cal">{Math.round(ing.calories)} kcal</span>
+                        <span className="macro-pill pro">{ing.protein}P</span>
+                        <span className="macro-pill carb">{ing.carbs}C</span>
+                        <span className="macro-pill fat">{ing.fat}F</span>
+                        <span className="macro-pill fib">{ing.fiber}Fib</span>
+                      </div>
+                    </div>
+                    <button className="delete-btn" onClick={() => removeIngredient(ing.id)}>✕</button>
+                  </div>
+                ))}
+              </div>
+
+              {/* End day / Save edits */}
+              {ingredients.length > 0 && (
+                <div className="end-day-section">
+                  <button className="btn btn-danger" style={{ flex: 1 }} onClick={() => setShowEndDayConfirm(true)}>
+                    {editingDate ? 'Save Changes' : 'End Day'}
+                  </button>
+                </div>
+              )}
+            </>
+          ) : (
+            /* Weekly view */
+            <>
+              {chartData.length === 0 ? (
+                <div className="empty-state">
+                  <div className="icon">📊</div>
+                  <p>No data yet. End a day to see your weekly overview.</p>
+                </div>
+              ) : (
+                <>
+                  <div className="weekly-chart">
+                    <h3>Calories — Last 7 Days</h3>
+                    <SimpleBarChart
+                      data={chartData}
+                      dataKey="calories"
+                      targetValue={targets.calories}
+                      color="#6c5ce7"
+                      overColor="#ff4757"
+                    />
+                  </div>
+
+                  <div className="weekly-chart">
+                    <h3>Daily Breakdown</h3>
+                    <table className="weekly-table">
+                      <thead>
+                        <tr>
+                          <th>Day</th>
+                          <th style={{ color: 'var(--calories)' }}>Cal</th>
+                          <th style={{ color: 'var(--protein)' }}>P</th>
+                          <th style={{ color: 'var(--carbs)' }}>C</th>
+                          <th style={{ color: 'var(--fat)' }}>F</th>
+                          <th style={{ color: 'var(--fiber)' }}>Fib</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {history.slice(0, 7).map(day => (
+                          <React.Fragment key={day.date}>
+                            <tr className="clickable-row" onClick={() => setExpandedDay(expandedDay === day.date ? null : day.date)}>
+                              <td>{new Date(day.date + 'T12:00:00').toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' })}</td>
+                              <td>{Math.round(day.totals.calories)}</td>
+                              <td>{Math.round(day.totals.protein)}g</td>
+                              <td>{Math.round(day.totals.carbs)}g</td>
+                              <td>{Math.round(day.totals.fat)}g</td>
+                              <td>{Math.round(day.totals.fiber)}g</td>
+                            </tr>
+                            {expandedDay === day.date && (
+                              <tr>
+                                <td colSpan="6" style={{ padding: '0 8px 10px' }}>
+                                  <div className="day-detail">
+                                    {day.ingredients.map((ing, idx) => (
+                                      <div className="detail-item" key={idx}>
+                                        <span>{ing.name} ({ing.amount}{ing.unit})</span>
+                                        <span>{Math.round(ing.calories)} kcal</span>
+                                      </div>
+                                    ))}
+                                    <div style={{ marginTop: 8, textAlign: 'right' }}>
+                                      <button className="edit-day-btn" onClick={(e) => { e.stopPropagation(); startEditingDay(day.date); }}>
+                                        <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+                                          <path d="M11.5 1.5l3 3-9 9H2.5v-3z" /><path d="M10 3l3 3" />
+                                        </svg>
+                                        Edit
+                                      </button>
+                                    </div>
+                                  </div>
+                                </td>
+                              </tr>
+                            )}
+                          </React.Fragment>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                </>
+              )}
+            </>
+          )}
+
+          {/* End day confirmation */}
+          {showEndDayConfirm && (
+            <div className="modal-overlay" onClick={() => setShowEndDayConfirm(false)}>
+              <div className="modal" onClick={e => e.stopPropagation()}>
+                <h2>{editingDate ? 'Save Changes?' : 'End Day?'}</h2>
+                <p style={{ color: 'var(--text-dim)', fontSize: 14, lineHeight: 1.5, marginBottom: 8 }}>
+                  {editingDate
+                    ? `Save changes to ${new Date(editingDate + 'T12:00:00').toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' })} (${ingredients.length} item${ingredients.length !== 1 ? 's' : ''}, ${Math.round(totals.calories)} kcal)?`
+                    : `This will save today's log (${ingredients.length} item${ingredients.length !== 1 ? 's' : ''}, ${Math.round(totals.calories)} kcal) and reset the counter.`
+                  }
+                </p>
+                <div className="actions">
+                  <button className="btn btn-secondary" onClick={() => setShowEndDayConfirm(false)}>Cancel</button>
+                  <button className="btn btn-danger" onClick={() => { setShowEndDayConfirm(false); endDay(); }}>
+                    {editingDate ? 'Save' : 'End Day'}
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* Settings FAB */}
+          <button className="settings-btn" onClick={() => setShowSettings(true)} title="Settings">⚙</button>
+
+          {/* Settings modal */}
+          {showSettings && (
+            <SettingsModal
+              targets={targets}
+              onSave={setTargets}
+              onClose={() => setShowSettings(false)}
+            />
+          )}
+
+          {/* Toast */}
+          {toast && <Toast message={toast} onDone={() => setToast(null)} />}
+        </div>
+      );
+    }
+
+    ReactDOM.createRoot(document.getElementById('root')).render(<App />);
+  </script>
+</body>
+</html>
